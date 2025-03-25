@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: docmatrix-quota
+  namespace: production
+spec:
+  hard:
+    # Compute resources
+    requests.cpu: "20"
+    requests.memory: "40Gi"
+    limits.cpu: "40"
+    limits.memory: "80Gi"
+    
+    # Object count limits
+    pods: "50"
+    services: "10"
+    secrets: "20"
+    configmaps: "20"
+    persistentvolumeclaims: "10"
+    
+    # Storage limits
+    requests.storage: "500Gi"
+    
+    # Load balancer limits
+    services.loadbalancers: "2"
+    
+    # Ephemeral storage
+    requests.ephemeral-storage: "100Gi"
+    limits.ephemeral-storage: "200Gi" 

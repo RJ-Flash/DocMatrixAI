@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: expense-doc-config
+data:
+  db_host: "postgres"
+  db_port: "5432"
+  db_name: "expense_doc"
+  redis_url: "redis://redis:6379/0"
+  log_level: "INFO"
+  environment: "production"
+  max_upload_size: "10MB"
+  allowed_file_types: ".pdf,.png,.jpg,.jpeg,.tiff"
+  ocr_batch_size: "5"
+  expense_categories: "travel,meals,office,equipment,software,training"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: expense-doc-secrets
+type: Opaque
+stringData:
+  db_user: "expense_doc_user"  # Replace in production
+  db_password: "change_me"     # Replace in production
+  openai_api_key: ""          # Add your OpenAI API key
+  jwt_secret: ""              # Generate a secure secret
+  smtp_password: ""           # Add SMTP password for notifications
+  storage_access_key: ""      # Add cloud storage access key 

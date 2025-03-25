@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #6c5ce7;
+  --primary-dark: #5849c4;
+}
+
+body {
+  min-height: 100vh;
+} 

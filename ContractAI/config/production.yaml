@@ -1,0 +1,17 @@
+# Production Configuration
+environment: production
+
+database:
+  host: 
+  port: 5432
+  name: contractai_prod
+  user: 
+  
+api:
+  host: 0.0.0.0
+  port: 8000
+  debug: false
+  
+ai:
+  models_path: /opt/contractai/models
+  openai_api_key: 

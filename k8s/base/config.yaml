@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docmatrix-config
+data:
+  db_host: "postgres"
+  db_port: "5432"
+  db_name: "docmatrix"
+  redis_url: "redis://redis:6379/0"
+  log_level: "INFO"
+  environment: "production"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: docmatrix-secrets
+type: Opaque
+stringData:
+  db_user: "docmatrix_user"  # Replace in production
+  db_password: "change_me"    # Replace in production
+  openai_api_key: ""         # Add your API key
+  jwt_secret: ""             # Generate a secure secret 

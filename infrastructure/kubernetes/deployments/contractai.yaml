@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: contractai
+  labels:
+    app: contractai
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: contractai
+  template:
+    metadata:
+      labels:
+        app: contractai
+    spec:
+      containers:
+      - name: contractai
+        image: docmatrixai/contractai:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: contractai-secrets
+              key: database-url

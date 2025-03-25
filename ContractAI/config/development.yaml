@@ -1,0 +1,17 @@
+# Development Configuration
+environment: development
+
+database:
+  host: localhost
+  port: 5432
+  name: contractai_dev
+  user: dev_user
+  
+api:
+  host: 0.0.0.0
+  port: 8000
+  debug: true
+  
+ai:
+  models_path: ./app/ai/models
+  openai_api_key: 

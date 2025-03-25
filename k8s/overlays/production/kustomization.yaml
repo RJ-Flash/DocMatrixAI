@@ -1,0 +1,78 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: production
+
+bases:
+  - ../../base
+
+commonLabels:
+  env: production
+
+resources:
+  - namespace.yaml
+  - networkpolicy.yaml
+  - resourcequota.yaml
+
+patches:
+  - target:
+      kind: Deployment
+      name: docmatrix-api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 2Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 1Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "2"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "1"
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: ghcr.io/docmatrix/api:production
+  - target:
+      kind: Ingress
+      name: docmatrix-api
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: api.docmatrix.ai
+      - op: replace
+        path: /spec/rules/0/host
+        value: api.docmatrix.ai
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: docmatrix-api
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
+      - op: replace
+        path: /spec/metrics/0/resource/target/averageUtilization
+        value: 75
+      - op: replace
+        path: /spec/metrics/1/resource/target/averageUtilization
+        value: 75
+
+configMapGenerator:
+  - name: docmatrix-config
+    behavior: merge
+    literals:
+      - environment=production
+      - log_level=INFO
+
+secretGenerator:
+  - name: docmatrix-secrets
+    behavior: merge
+    envs:
+      - .env.production 

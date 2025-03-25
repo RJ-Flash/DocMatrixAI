@@ -1,0 +1,55 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: expense-doc-staging
+
+bases:
+  - ../../base
+
+commonLabels:
+  env: staging
+
+resources:
+  - namespace.yaml
+
+patches:
+  - target:
+      kind: Deployment
+      name: expense-doc-api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 1Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 512Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: ghcr.io/docmatrix/expense-doc:staging
+  - target:
+      kind: Service
+      name: expense-doc-api
+    patch: |-
+      - op: replace
+        path: /metadata/annotations
+        value:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "8000"
+          prometheus.io/path: "/metrics"
+
+configMapGenerator:
+  - name: expense-doc-config
+    behavior: merge
+    literals:
+      - environment=staging
+      - log_level=DEBUG
+      - db_name=expense_doc_staging
+
+secretGenerator:
+  - name: expense-doc-secrets
+    behavior: merge
+    envs:
+      - .env.staging 

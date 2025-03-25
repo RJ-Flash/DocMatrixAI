@@ -1,0 +1,17 @@
+# Staging Configuration
+environment: staging
+
+database:
+  host: 
+  port: 5432
+  name: contractai_staging
+  user: 
+  
+api:
+  host: 0.0.0.0
+  port: 8000
+  debug: true
+  
+ai:
+  models_path: /opt/contractai/models
+  openai_api_key: 

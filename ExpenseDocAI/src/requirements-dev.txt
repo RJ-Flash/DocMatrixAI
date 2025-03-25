@@ -1,0 +1,40 @@
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+factory-boy==3.3.0
+coverage==7.4.1
+
+# Linting and formatting
+black==23.11.0
+flake8==6.1.0
+flake8-docstrings==1.7.0
+mypy==1.7.0
+isort==5.12.0
+bandit==1.7.5
+pyupgrade==3.15.0
+pre-commit==3.6.0
+
+# Type checking
+types-all==1.0.0
+types-requests==2.31.0.20240125
+types-PyYAML==6.0.12.12
+types-python-dateutil==2.8.19.14
+types-setuptools==69.0.0.20240125
+types-urllib3==1.26.25.14
+
+# Documentation
+Sphinx==7.2.6
+sphinx-rtd-theme==2.0.0
+sphinx-autodoc-typehints==1.24.0
+
+# Debugging
+ipython==8.21.0
+ipdb==0.13.13
+django-debug-toolbar==4.2.0
+
+# Development tools
+django-extensions==3.2.3
+werkzeug==3.0.1
+watchdog==3.0.0 

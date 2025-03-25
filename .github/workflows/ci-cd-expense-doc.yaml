@@ -1,0 +1,194 @@
+name: ExpenseDocAI CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: docmatrix/expense-doc
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_DB: expense_doc_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:6-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run linting
+      run: |
+        flake8 .
+        black --check .
+        isort --check-only .
+
+    - name: Run tests with coverage
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: expense_doc_test
+        DB_USER: test_user
+        DB_PASSWORD: test_password
+        REDIS_URL: redis://localhost:6379/0
+        ENVIRONMENT: test
+      run: |
+        pytest --cov=app --cov-report=xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: true
+
+  build:
+    name: Build and Push Image
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=sha,format=long
+          type=ref,event=branch
+
+    - name: Build and push
+      uses: docker/build-push-action@v4
+      with:
+        context: ./products/expense-doc
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-hostgator:
+    name: Deploy to HostGator
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: hostgator
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up SSH
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.HOSTGATOR_SSH_KEY }}
+        known_hosts: ${{ secrets.HOSTGATOR_KNOWN_HOSTS }}
+        
+    - name: Create deployment package
+      run: |
+        zip -r deployment.zip . -x "*.git*" "*.github*" "tests/*" "docs/*"
+        
+    - name: Deploy to HostGator via SSH
+      env:
+        DEPLOY_PATH: /home/${{ secrets.HOSTGATOR_SSH_USER }}/public_html/expense-doc
+      run: |
+        # Ensure target directory exists
+        ssh ${{ secrets.HOSTGATOR_SSH_USER }}@${{ secrets.HOSTGATOR_HOST }} "mkdir -p $DEPLOY_PATH"
+        
+        # Upload deployment package
+        scp deployment.zip ${{ secrets.HOSTGATOR_SSH_USER }}@${{ secrets.HOSTGATOR_HOST }}:$DEPLOY_PATH/
+        
+        # Execute deployment commands
+        ssh ${{ secrets.HOSTGATOR_SSH_USER }}@${{ secrets.HOSTGATOR_HOST }} << 'EOF'
+          cd $DEPLOY_PATH
+          unzip -o deployment.zip
+          rm deployment.zip
+          
+          # Activate Python virtual environment or create if not exists
+          if [ ! -d "venv" ]; then
+            python3 -m venv venv
+          fi
+          source venv/bin/activate
+          
+          # Install/update dependencies
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # Run database migrations
+          python manage.py migrate --noinput
+          
+          # Collect static files
+          python manage.py collectstatic --noinput
+          
+          # Set proper permissions
+          chmod -R 755 .
+          find . -type f -exec chmod 644 {} \;
+          
+          # Create or update .htaccess for Python application
+          cat > .htaccess << 'EOL'
+          AddHandler fcgid-script .fcgi
+          RewriteEngine On
+          RewriteCond %{REQUEST_FILENAME} !-f
+          RewriteRule ^(.*)$ dispatch.fcgi/$1 [QSA,L]
+          EOL
+          
+          # Restart application (touch restart.txt for Passenger)
+          mkdir -p tmp
+          touch tmp/restart.txt
+        EOF
+        
+    - name: Verify deployment
+      run: |
+        curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.HOSTGATOR_DOMAIN }}/expense-doc/health | grep 200 

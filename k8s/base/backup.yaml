@@ -1,0 +1,60 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: docmatrix-api-backup
+  namespace: velero
+spec:
+  schedule: "0 1 * * *"  # Daily at 1 AM
+  template:
+    includedNamespaces:
+    - production
+    - staging
+    includedResources:
+    - deployments
+    - services
+    - configmaps
+    - secrets
+    - persistentvolumeclaims
+    - horizontalpodautoscalers
+    labelSelector:
+      matchLabels:
+        app: docmatrix
+    storageLocation: default
+    volumeSnapshotLocations:
+    - default
+    ttl: 720h  # 30 days
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: docmatrix-db-backup
+  namespace: velero
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  template:
+    includedNamespaces:
+    - production
+    - staging
+    includedResources:
+    - pods
+    labelSelector:
+      matchLabels:
+        app: postgres
+    hooks:
+      resources:
+        - name: postgres-backup
+          includedNamespaces:
+          - production
+          - staging
+          labelSelector:
+            matchLabels:
+              app: postgres
+          pre:
+            - exec:
+                container: postgres
+                command:
+                - /bin/sh
+                - -c
+                - pg_dump -U $POSTGRES_USER -d $POSTGRES_DB | gzip > /backup/db-$(date +%Y%m%d-%H%M%S).sql.gz
+    storageLocation: default
+    ttl: 168h  # 7 days 

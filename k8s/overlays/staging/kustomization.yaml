@@ -1,0 +1,65 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: staging
+
+bases:
+  - ../../base
+
+commonLabels:
+  env: staging
+
+resources:
+  - namespace.yaml
+  - networkpolicy.yaml
+
+patches:
+  - target:
+      kind: Deployment
+      name: docmatrix-api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 1Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 512Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: ghcr.io/docmatrix/api:staging
+  - target:
+      kind: Ingress
+      name: docmatrix-api
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: staging-api.docmatrix.ai
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging-api.docmatrix.ai
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: docmatrix-api
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 5
+
+configMapGenerator:
+  - name: docmatrix-config
+    behavior: merge
+    literals:
+      - environment=staging
+      - log_level=DEBUG
+
+secretGenerator:
+  - name: docmatrix-secrets
+    behavior: merge
+    envs:
+      - .env.staging 
